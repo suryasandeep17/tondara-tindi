@@ -16,8 +16,8 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", app: "Tondara Tindi" });
 });
 
-// AI recipe generation
-app.post("/api/generate-recipe", async (req, res) => {
+// AI recipe handler
+async function generateRecipe(req, res) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -28,25 +28,31 @@ app.post("/api/generate-recipe", async (req, res) => {
       });
     }
 
-    const { ingredients, preferences, prompt } = req.body;
+    const { ingredients, preferences, prompt, craving, diet, cuisine, budget } = req.body;
 
-    const userPrompt =
-      prompt ||
-      `Create an Indian recipe using these ingredients: ${
-        Array.isArray(ingredients)
-          ? ingredients.join(", ")
-          : ingredients || "available ingredients"
-      }.
+    const userPrompt = prompt || `
+Create a practical Indian recipe.
 
-      Preferences: ${preferences || "None"}
+Available ingredients: ${
+      Array.isArray(ingredients)
+        ? ingredients.join(", ")
+        : ingredients || "No ingredients specified"
+    }
 
-      Include:
-      - Recipe name
-      - Ingredients and quantities
-      - Preparation steps
-      - Cooking time
-      - Servings
-      - Tips`;
+Craving: ${craving || "Any"}
+Diet: ${diet || "Any"}
+Cuisine: ${cuisine || "Any"}
+Budget per meal: ${budget || "Not specified"}
+Preferences: ${preferences || "None"}
+
+Include:
+- Recipe name
+- Ingredients with quantities
+- Preparation steps
+- Cooking time
+- Servings
+- Tips
+`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -60,7 +66,7 @@ app.post("/api/generate-recipe", async (req, res) => {
           {
             role: "system",
             content:
-              "You are Tondara Tindi, a friendly Indian cooking assistant specializing in Indian cuisine, including South Indian, Telugu, Andhra, Tamil, Karnataka and Kerala dishes. Give practical recipes suited to home kitchens."
+              "You are Tondara Tindi, an expert Indian home-cooking assistant. Specialize in practical Indian recipes, particularly Telugu, Andhra, Tamil, Karnataka and Kerala cuisine. Give clear, affordable recipes suitable for home kitchens."
           },
           {
             role: "user",
@@ -74,30 +80,35 @@ app.post("/api/generate-recipe", async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("OpenAI API error:", data);
+      console.error("OpenAI error:", data);
+
       return res.status(response.status).json({
-        error: data.error?.message || "Recipe generation failed."
+        error: data.error?.message || "OpenAI request failed."
       });
     }
 
-    res.json({
-      recipe: data.choices?.[0]?.message?.content || ""
-    });
+    const recipe = data.choices?.[0]?.message?.content || "";
+
+    res.json({ recipe });
   } catch (error) {
-    console.error("Recipe API error:", error);
+    console.error("Recipe generation error:", error);
 
     res.status(500).json({
-      error: "Something went wrong while generating your recipe."
+      error: "Failed to generate recipe."
     });
   }
-});
+}
 
-// Serve Vite production build
+// Support both frontend endpoint names
+app.post("/api/chef", generateRecipe);
+app.post("/api/generate-recipe", generateRecipe);
+
+// Serve the production frontend
 const distPath = path.join(__dirname, "dist");
 
 app.use(express.static(distPath));
 
-// React/Vite fallback (Express 5-compatible)
+// React/Vite fallback
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) {
     return res.status(404).json({ error: "API route not found" });
