@@ -1,0 +1,9 @@
+{
+  "name": "tondara-tindi",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {"dev": "concurrently \"vite\" \"node server.js\"", "build": "vite build", "start": "node server.js"},
+  "dependencies": {"@vitejs/plugin-react":"latest", "vite":"latest", "react":"latest", "react-dom":"latest", "express":"latest", "dotenv":"latest"},
+  "devDependencies": {"concurrently":"latest"}
+}
